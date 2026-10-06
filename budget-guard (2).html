@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Budget Guard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f1;--card:#fff;--ink:#14272a;--mute:#5d7275;--line:#d3dedc;--ok:#1f7a5c;--warn:#c8431f;--accent:#14272a;--accent-ink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a1c;--card:#16272a;--ink:#e6f0ee;--mute:#8da5a8;--line:#27403f;--ok:#4fc79b;--warn:#ff7a55;--accent:#e6f0ee;--accent-ink:#0e1a1c}}
+:root[data-theme="dark"]{--bg:#0e1a1c;--card:#16272a;--ink:#e6f0ee;--mute:#8da5a8;--line:#27403f;--ok:#4fc79b;--warn:#ff7a55;--accent:#e6f0ee;--accent-ink:#0e1a1c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.45}
+main{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:28px;font-weight:800;margin:8px 0 2px}
+h2{font-size:17px;font-weight:600;margin:0 0 12px}
+.sub{color:var(--mute);margin:0 0 20px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input,select,button{font:inherit;color:inherit}
+input,select{flex:1;min-width:110px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+button{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:transparent;cursor:pointer;font-weight:600}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{background:var(--warn);color:#fff;border-color:var(--warn)}
+:focus-visible{outline:3px solid var(--ok);outline-offset:2px}
+.cat{padding:12px 0;border-top:1px solid var(--line)}
+.cat:first-of-type{border-top:0}
+.cat-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cat-name{font-weight:600}
+.amt{color:var(--mute);font-size:14px}
+.bar{height:8px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .3s}
+.bar.over>i{background:var(--warn)}
+.x{padding:2px 8px;font-size:13px;color:var(--mute);border:0}
+.tx{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:15px}
+.tx:first-of-type{border-top:0}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute);margin-left:6px}
+.tag.bad{color:var(--warn);border-color:var(--warn)}
+.empty{color:var(--mute);margin:0}
+body.check:not(.nobud):not(.showall) .hide,body.check:not(.showall) #reset{display:none}
+#editLink{display:none;margin:0 0 14px}
+body.check #editLink{display:inline-block}
+body.check input,body.check select{padding:14px;font-size:18px}
+#result{display:none;margin-top:14px;padding:14px;border-radius:12px;border:2px solid var(--ok)}
+#result.bad{border-color:var(--warn)}
+#result.show{display:block}
+#result p{margin:0 0 10px;font-weight:600}
+#result a{display:inline-block;padding:10px 16px;border-radius:10px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:600}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chips button{padding:4px 10px;font-size:13px;font-weight:400;color:var(--mute);border-radius:99px}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+#overlay.show{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:20px;max-width:420px;width:100%;border:2px solid var(--warn)}
+.modal h3{margin:0 0 8px;font-size:20px;color:var(--warn)}
+.modal p{margin:0 0 16px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--accent);color:var(--accent-ink);padding:10px 16px;border-radius:10px;display:none;z-index:20;max-width:90%}
+.toast.show{display:block}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Budget Guard</h1>
+  <p class="sub" id="subtitle">Set a budget for each category. Spending within it goes through; spending past it asks you first.</p>
+
+  <button id="editLink">Edit budgets</button>
+  <section class="hide">
+    <h2>Your budgets</h2>
+    <div class="chips" id="chips" aria-label="Quick add categories"></div>
+    <div class="row" style="margin-bottom:8px">
+      <input id="bName" placeholder="Category, e.g. Grocery" aria-label="Category name">
+      <input id="bAmt" type="number" min="1" inputmode="numeric" placeholder="Budget in ₹" aria-label="Budget amount in rupees">
+      <button class="primary" id="bAdd">Save budget</button>
+    </div>
+    <div id="cats"></div>
+  </section>
+
+  <section>
+    <h2>Make a payment</h2>
+    <div class="row">
+      <select id="pCat" aria-label="Category"></select>
+      <input id="pAmt" type="number" min="1" inputmode="numeric" placeholder="Amount in ₹" aria-label="Payment amount in rupees">
+      <input id="pNote" placeholder="Note (optional)" aria-label="Note">
+      <button class="primary" id="pGo">Pay</button>
+    </div>
+    <div id="result" role="status"></div>
+  </section>
+
+  <section class="hide">
+    <h2>History</h2>
+    <div id="hist"></div>
+  </section>
+  <button id="reset">Reset all data</button>
+</main>
+
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal">
+    <h3 id="mTitle">You're bypassing your budget</h3>
+    <p id="mText"></p>
+    <div class="row">
+      <button class="danger" id="yes">Yes, pay anyway</button>
+      <button id="no">No, cancel payment</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+var state={budgets:[],tx:[]};var editing=-1;
+var suggestions=['Grocery','Rent','Bills','Travel','Eating out','Shopping','Fuel','Health'];
+try{var s=localStorage.getItem('budgetGuard');if(s)state=JSON.parse(s)}catch(e){}
+function save(){try{localStorage.setItem('budgetGuard',JSON.stringify(state))}catch(e){}}
+var $=function(id){return document.getElementById(id)};
+var inr=function(n){return '₹'+Number(n).toLocaleString('en-IN')};
+function escA(t){return String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+function esc(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function spent(cat){return state.tx.filter(function(t){return t.cat===cat&&t.status==='paid'}).reduce(function(a,t){return a+t.amt},0)}
+function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('show')},2600)}
+
+function reload(){try{var v=localStorage.getItem('budgetGuard');if(v){state=JSON.parse(v);render()}}catch(e){}}
+window.addEventListener('storage',reload);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)reload()});
+function render(){
+  document.body.classList.toggle('nobud',!state.budgets.length);
+  var c=$('cats');
+  if(!state.budgets.length){c.innerHTML='<p class="empty">No budgets yet. Add one above, like Grocery with ₹2000.</p>'}
+  else c.innerHTML=state.budgets.map(function(b,i){
+    if(i===editing)return '<div class="cat"><div class="row"><input id="eName" value="'+escA(b.name)+'" aria-label="Category name">'+
+    '<input id="eAmt" type="number" min="1" value="'+b.amt+'" aria-label="Budget amount">'+
+    '<button class="primary" data-save="'+i+'">Save</button><button data-cancel="1">Cancel</button></div></div>';
+    var sp=spent(b.name),pct=Math.min(100,sp/b.amt*100),over=sp>b.amt;
+    return '<div class="cat"><div class="cat-head"><span class="cat-name">'+esc(b.name)+'</span>'+
+    '<span class="amt">'+inr(sp)+' of '+inr(b.amt)+(over?' · over by '+inr(sp-b.amt):' · '+inr(b.amt-sp)+' left')+
+    ' <button class="x" data-edit="'+i+'" aria-label="Edit '+escA(b.name)+'">Edit</button>'+
+    '<button class="x" data-del="'+i+'" aria-label="Delete '+escA(b.name)+'">Delete</button></span></div>'+
+    '<div class="bar'+(over?' over':'')+'"><i style="width:'+pct+'%"></i></div></div>'}).join('');
+  $('chips').innerHTML=suggestions.filter(function(n){return !state.budgets.some(function(b){return b.name.toLowerCase()===n.toLowerCase()})}).map(function(n){return '<button data-chip="'+n+'">+ '+n+'</button>'}).join('');
+  var cur=$('pCat').value;
+  $('pCat').innerHTML=state.budgets.length?state.budgets.map(function(b){return '<option>'+esc(b.name)+'</option>'}).join(''):'<option value="">Add a budget first</option>';
+  if(cur)$('pCat').value=cur;
+  var h=$('hist');
+  h.innerHTML=state.tx.length?state.tx.slice().reverse().map(function(t){
+    return '<div class="tx"><span>'+esc(t.cat)+(t.note?' · '+esc(t.note):'')+
+    '<span class="tag'+(t.status==='paid'?'':' bad')+'">'+(t.status==='paid'?(t.over?'paid, over budget':'paid'):'cancelled')+'</span></span>'+
+    '<span>'+inr(t.amt)+'</span></div>'}).join(''):'<p class="empty">No payments yet.</p>';
+}
+
+$('bAdd').onclick=function(){
+  var n=$('bName').value.trim(),a=parseFloat($('bAmt').value);
+  if(!n||!(a>0)){toast('Enter a category name and a budget above ₹0');return}
+  var ex=state.budgets.find(function(b){return b.name.toLowerCase()===n.toLowerCase()});
+  if(ex)ex.amt=a;else state.budgets.push({name:n,amt:a});
+  $('bName').value='';$('bAmt').value='';save();render();toast('Budget saved');
+};
+$('chips').onclick=function(e){var n=e.target.getAttribute('data-chip');if(n){$('bName').value=n;$('bAmt').focus()}};
+$('cats').onclick=function(e){
+  var t=e.target,d=t.getAttribute('data-del'),ed=t.getAttribute('data-edit'),sv=t.getAttribute('data-save');
+  if(ed!==null){editing=+ed;render();return}
+  if(t.getAttribute('data-cancel')){editing=-1;render();return}
+  if(sv!==null){
+    var i=+sv,n=$('eName').value.trim(),a=parseFloat($('eAmt').value),old=state.budgets[i].name;
+    if(!n||!(a>0)){toast('Enter a name and a budget above ₹0');return}
+    if(state.budgets.some(function(b,j){return j!==i&&b.name.toLowerCase()===n.toLowerCase()})){toast('That category already exists');return}
+    state.tx.forEach(function(x){if(x.cat===old)x.cat=n});
+    state.budgets[i]={name:n,amt:a};editing=-1;save();render();toast('Budget updated');return
+  }
+  if(d!==null&&confirm('Delete this budget?')){state.budgets.splice(+d,1);editing=-1;save();render()}
+};
+
+var checkMode=false,GPAY='intent://#Intent;package=com.google.android.apps.nbu.paisa.user;end';
+function applyMode(){checkMode=location.hash==='#check';document.body.classList.toggle('check',checkMode);
+  $('title').textContent=checkMode?'Check before you pay':'Budget Guard';
+  $('subtitle').textContent=checkMode?'Enter what you are about to pay. You will see if it fits your budget.':'Set a budget for each category. Spending within it goes through; spending past it asks you first.';
+  $('result').className=''}
+window.onhashchange=applyMode;
+$('editLink').onclick=function(){var on=document.body.classList.toggle('showall');this.textContent=on?'Hide budgets':'Edit budgets'};
+function result(msg,ok,gpay){if(!checkMode)return;var r=$('result');
+  r.className='show'+(ok?'':' bad');
+  r.innerHTML='<p>'+esc(msg)+'</p>'+(gpay?'<a href="'+GPAY+'">Open GPay</a>':'')}
+var pending=null;
+function record(p,over){
+  state.tx.push({cat:p.cat,amt:p.amt,note:p.note,status:'paid',over:over});
+  save();render();toast(inr(p.amt)+' paid for '+p.cat);
+  var b=state.budgets.find(function(x){return x.name===p.cat});
+  result(over?'Logged '+inr(p.amt)+' over budget. Go ahead and pay in GPay.':'Within budget: '+inr(b.amt-spent(p.cat))+' left in '+p.cat+'. Go ahead and pay in GPay.',!over,true);
+}
+$('pGo').onclick=function(){
+  var cat=$('pCat').value,amt=parseFloat($('pAmt').value),note=$('pNote').value.trim();
+  if(!cat){toast('Add a budget first');return}
+  if(!(amt>0)){toast('Enter an amount above ₹0');return}
+  var b=state.budgets.find(function(x){return x.name===cat});
+  var p={cat:cat,amt:amt,note:note},total=spent(cat)+amt;
+  $('pAmt').value='';$('pNote').value='';
+  if(total<=b.amt){record(p,false);return}
+  pending=p;
+  $('mText').textContent='This ₹'+amt.toLocaleString('en-IN')+' payment takes '+cat+' to '+inr(total)+', which is '+inr(total-b.amt)+' above your '+inr(b.amt)+' budget. Pay anyway?';
+  $('overlay').classList.add('show');$('no').focus();
+};
+$('yes').onclick=function(){$('overlay').classList.remove('show');if(pending)record(pending,true);pending=null};
+$('no').onclick=function(){
+  $('overlay').classList.remove('show');
+  if(pending){state.tx.push({cat:pending.cat,amt:pending.amt,note:pending.note,status:'cancelled'});save();render();toast('Payment cancelled');result('Payment cancelled. Close GPay and do not pay.',false,false)}
+  pending=null;
+};
+$('reset').onclick=function(){if(confirm('Delete all budgets and history?')){state={budgets:[],tx:[]};save();render()}};
+applyMode();render();
+</script>
+</body>
+</html>
